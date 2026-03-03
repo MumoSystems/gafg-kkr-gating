@@ -1,0 +1,32 @@
+name: Create Jira Change Work Item
+run-name: Creating change work item in Jira
+on:
+  pull_request:
+    branches: ["main"]
+    types: ["opened", "reopened"]
+jobs:
+  create_change_work_item:
+    name: Create Jira Change Work Item
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'develop' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Create Jira Change Work Item
+        run: .github/actions/create-change-work-item
+        env:
+          JIRA_URL: ${{ vars.JIRA_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL_ADDRESS: ${{ vars.JIRA_USER_EMAIL_ADDRESS }}
+          JIRA_ISSUE_DESCRIPTION: Change ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} ${{ github.event.pull_request.number }} ${{ github.repository }}
+          JIRA_ISSUE_SUMMARY: Change ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} ${{ github.event.pull_request.number }} ${{ github.repository }}
+          JIRA_ISSUE_TYPE: 10022
+          JIRA_PROJECT: PLAT
+          # AFFECTED_SERVICE_ID: ari:cloud:graph::service/37f83634-bfa0-4993-80b5-c730481e10e3/431beaae-94b8-11f0-ba75-0affec4791ff
+          # REQUEST_TYPE_ID: ms/9338774d-21ce-4712-a1dd-4d908a8ffce3
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNOW_USER: ${{ vars.SNOW_USER }}
+          SNOW_URL: ${{ vars.SNOW_URL }}
+          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}

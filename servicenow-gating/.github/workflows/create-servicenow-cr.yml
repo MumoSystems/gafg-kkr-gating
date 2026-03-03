@@ -1,0 +1,23 @@
+name: Create ServiceNow Change Request
+run-name: Creating change request in Jira
+on:
+  pull_request:
+    branches: ["main"]
+    types: ["opened", "reopened"]
+jobs:
+  create-servicenow-cr:
+    name: Create ServiceNow Change Request
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'develop' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Create ServiceNow Change Request
+        run: .github/actions/create-servicenow-cr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNOW_USER: ${{ vars.SNOW_USER }}
+          SNOW_URL: ${{ vars.SNOW_URL }}
+          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}

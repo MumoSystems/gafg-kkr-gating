@@ -1,0 +1,22 @@
+name: Check Jira Approval
+run-name: Checking if work item for this PR has been approved
+on:
+  pull_request:
+    branches: ["main"]
+    types: ["opened", "reopened"]
+  workflow_dispatch:
+jobs:
+  check-jira-approval:
+    name: Check Jira Approval
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Check Jira Approval
+        run: .github/actions/check-jira-approval
+        env:
+          JIRA_URL: ${{ vars.JIRA_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL_ADDRESS: ${{ vars.JIRA_USER_EMAIL_ADDRESS }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

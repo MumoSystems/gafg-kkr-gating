@@ -1,0 +1,25 @@
+name: Check Jira and ServiceNow Approvals
+run-name: Checking if work item for this PR has been approved
+on:
+  pull_request:
+    branches: ["main"]
+    types: ["opened", "reopened"]
+  workflow_dispatch:
+jobs:
+  check-work-item-approval:
+    name: Check Jira and ServiceNow Approvals
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Check Jira and ServiceNow Approvals
+        run: .github/actions/check-work-item-approval
+        env:
+          JIRA_URL: ${{ vars.JIRA_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL_ADDRESS: ${{ vars.JIRA_USER_EMAIL_ADDRESS }}
+          SNOW_USER: ${{ vars.SNOW_USER }}
+          SNOW_URL: ${{ vars.SNOW_URL }}
+          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

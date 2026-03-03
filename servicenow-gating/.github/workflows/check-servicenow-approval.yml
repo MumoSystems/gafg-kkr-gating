@@ -1,0 +1,22 @@
+name: Check Change Request Approval
+run-name: Checking if Change Request for this PR has been approved
+on:
+  pull_request:
+    branches: ["main"]
+    types: ["opened", "reopened"]
+  workflow_dispatch:
+jobs:
+  check-servicenow-approval:
+    name: Check Change Request Approval
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Check Change Request Approval
+        run: .github/actions/check-servicenow-approval
+        env:
+          SNOW_USER: ${{ vars.SNOW_USER }}
+          SNOW_URL: ${{ vars.SNOW_URL }}
+          SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

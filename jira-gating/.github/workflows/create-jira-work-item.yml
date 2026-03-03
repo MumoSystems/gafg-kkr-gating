@@ -1,0 +1,25 @@
+name: Create Jira Work Item
+run-name: Creating change work item in Jira
+on:
+  pull_request:
+    branches: ["main"]
+    types: ["opened", "reopened"]
+jobs:
+  create-jira-work-item:
+    name: Create Jira Work Item
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Create Jira Work Item
+        run: .github/actions/create-jira-work-item
+        env:
+          JIRA_URL: ${{ vars.JIRA_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL_ADDRESS: ${{ vars.JIRA_USER_EMAIL_ADDRESS }}
+          JIRA_ISSUE_DESCRIPTION: Change ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} ${{ github.event.pull_request.number }} ${{ github.repository }}
+          JIRA_ISSUE_SUMMARY: Change ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} ${{ github.event.pull_request.number }} ${{ github.repository }}
+          JIRA_ISSUE_TYPE: 10022
+          JIRA_PROJECT: PLAT
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
