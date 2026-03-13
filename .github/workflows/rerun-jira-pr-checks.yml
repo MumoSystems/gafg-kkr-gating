@@ -17,3 +17,5 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           GITHUB_OWNER: $GITHUB_REPOSITORY_OWNER
           REPO: $GITHUB_REPOSITORY
+      - name: Echo the organization name
+        run: echo "The organization owner is $GITHUB_REPOSITORY_OWNER"
