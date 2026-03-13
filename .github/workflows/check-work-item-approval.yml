@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+      - name: Echo the organization name
+        run: echo "The organization owner is $GITHUB_REPOSITORY_OWNER"
       - name: Check Jira and ServiceNow Approvals
         run: .github/actions/check-work-item-approval
         env:
