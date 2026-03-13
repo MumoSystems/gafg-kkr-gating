@@ -28,7 +28,7 @@ jobs:
           # REQUEST_TYPE_ID: ms/9338774d-21ce-4712-a1dd-4d908a8ffce3
           GITHUB_OWNER: $GITHUB_REPOSITORY_OWNER
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: $GITHUB_REPOSITORY
+          GITHUB_REPO: $GITHUB_REPOSITORY
           SNOW_USER: ${{ vars.SNOW_USER }}
           SNOW_URL: ${{ vars.SNOW_URL }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}

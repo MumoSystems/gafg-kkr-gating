@@ -17,7 +17,12 @@ jobs:
       - name: Create ServiceNow Change Request
         run: .github/actions/create-servicenow-cr
         env:
+          GITHUB_OWNER: $GITHUB_REPOSITORY_OWNER
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: $GITHUB_REPOSITORY
+          JIRA_URL: ${{ vars.JIRA_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL_ADDRESS: ${{ vars.JIRA_USER_EMAIL_ADDRESS }}
           SNOW_USER: ${{ vars.SNOW_USER }}
           SNOW_URL: ${{ vars.SNOW_URL }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
