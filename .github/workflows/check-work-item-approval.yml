@@ -22,4 +22,6 @@ jobs:
           SNOW_USER: ${{ vars.SNOW_USER }}
           SNOW_URL: ${{ vars.SNOW_URL }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
+          GITHUB_OWNER: $GITHUB_REPOSITORY_OWNER
+          REPO: $GITHUB_REPOSITORY
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

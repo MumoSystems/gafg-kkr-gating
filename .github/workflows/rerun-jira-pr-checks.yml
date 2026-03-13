@@ -15,5 +15,5 @@ jobs:
         run: .github/actions/rerun-jira-pr-checks
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          REPO_OWNER: mumosystems
-          REPO: gafg-kkr-gating
+          GITHUB_OWNER: $GITHUB_REPOSITORY_OWNER
+          REPO: $GITHUB_REPOSITORY

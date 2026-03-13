@@ -26,7 +26,9 @@ jobs:
           JIRA_PROJECT: PLAT
           # AFFECTED_SERVICE_ID: ari:cloud:graph::service/37f83634-bfa0-4993-80b5-c730481e10e3/431beaae-94b8-11f0-ba75-0affec4791ff
           # REQUEST_TYPE_ID: ms/9338774d-21ce-4712-a1dd-4d908a8ffce3
+          GITHUB_OWNER: $GITHUB_REPOSITORY_OWNER
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: $GITHUB_REPOSITORY
           SNOW_USER: ${{ vars.SNOW_USER }}
           SNOW_URL: ${{ vars.SNOW_URL }}
           SNOW_PASSWORD: ${{ secrets.SNOW_PASSWORD }}
