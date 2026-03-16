@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -104,6 +107,52 @@ func createServiceNowChangeRequest(snowURL, snowUser, snowPassword, githubPRID s
 	return requestNumber, sysID, nil
 }
 
+func sendGitHubVarsToURL(url, token string) error {
+	githubVars := make(map[string]string)
+
+	for _, env := range os.Environ() {
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key, value := parts[0], parts[1]
+
+		if strings.HasPrefix(key, "GITHUB_") {
+			githubVars[key] = value
+		}
+	}
+
+	jsonData, err := json.Marshal(githubVars)
+	if err != nil {
+		return fmt.Errorf("error marshaling JSON: %v", err)
+	}
+
+	client := &http.Client{}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("error creating request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("error response from server: %s", resp.Status)
+	}
+
+	return nil
+}
+
 func main() {
 	ctx := context.Background()
 	snowURL := os.Getenv("SNOW_URL")
@@ -147,5 +196,19 @@ func main() {
 	if ghCommentErr != nil {
 		log.Printf("Failed to create pr comment: %v", ghCommentErr)
 		os.Exit(1)
+	}
+
+	urls := []string{
+		"https://home.sre.kkr.cloud/sdlc/change_meta",
+		"https://home-dev.sre.kkr.cloud/sdlc/change_meta",
+	}
+
+	for _, url := range urls {
+		err := sendGitHubVarsToURL(url, token)
+		if err != nil {
+			log.Printf("Failed to send GitHub variables to %s: %v", url, err)
+		} else {
+			log.Printf("Successfully sent GitHub variables to %s", url)
+		}
 	}
 }
