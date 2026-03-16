@@ -110,7 +110,7 @@ func main() {
 	snowUser := os.Getenv("SNOW_USER")
 	snowPassword := os.Getenv("SNOW_PASSWORD")
 	repoOwner := os.Getenv("GITHUB_OWNER")
-	githubRepo := os.Getenv("GITHUB_OWNER")
+	githubRepo := os.Getenv("GITHUB_REPO")
 	token := os.Getenv("GITHUB_TOKEN")
 
 	prEvent, err := goaction.GetPullRequest()
